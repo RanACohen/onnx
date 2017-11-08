@@ -100,6 +100,8 @@ message AttributeProto {
     STRINGS = 8;
     TENSORS = 9;
     GRAPHS = 10;
+
+	GLOBAL = 11;
   }
 
   // The name field MUST be present for this version of the IR.
@@ -128,6 +130,8 @@ message AttributeProto {
   repeated bytes strings = 9;         // list of UTF-8 strings
   repeated TensorProto tensors = 10;  // list of tensors
   repeated GraphProto graphs = 11;    // list of graph
+
+  optional bytes global = 12;				// in attribute namespace (in graph)
 }
 
 // Defines information on value, including the name, the type, and
@@ -139,6 +143,8 @@ message ValueInfoProto {
   optional TypeProto type = 2;
   // A human-readable documentation for this value. Markdown is allowed.
   optional string doc_string = 3;
+
+  repeated AttributeProto attribute = 5; // to describe meta data on this value (quantization, normalization, etc...)
 }
 
 // NodeProto stores a node that is similar to the notion of "layer"
@@ -147,7 +153,7 @@ message ValueInfoProto {
 // tensor, and produces the convolved output.
 message NodeProto {
   repeated string input = 1;    // namespace Value
-  repeated string output = 2;   // namespace Value
+  repeated ValueInfoProto output = 2;   // namespace Value
 
   // An optional identifier for this node in a graph.
   // This field MAY be absent in ths version of the IR.
@@ -212,6 +218,10 @@ message ModelProto {
 
   // The parameterized graph that is evaluated to execute the model.
   optional GraphProto graph = 7;
+
+  // use this to express reusable sub-graphs in topology
+  // graphs namespace are the same as Operator namespace
+  repeated GraphProto compond_ops = 10;
 };
 
 // GraphProto defines a parameterized series of nodes to form a directed acyclic graph.
@@ -238,12 +248,13 @@ message GraphProto {
 
   // The inputs and outputs of the graph.
   repeated ValueInfoProto input = 11;
-  repeated ValueInfoProto output = 12;
+  repeated string output = 12; // this refer to some node's output
 
   // Information for the values in the graph. The ValueInfoProto.name's
   // must be distinct. It is optional for a value to appear in value_info list.
-  repeated ValueInfoProto value_info = 13;
+  repeated ValueInfoProto value_info = 13; // move to the actual node, same problems for stuff here and not in node (not crtical)
 
+  repeated AttributeProto attribute = 14; // to support global sharable attributes
   // DO NOT USE the following fields, they were deprecated before
   // repeated string input = 3;
   // repeated string output = 4;
@@ -251,6 +262,11 @@ message GraphProto {
   // optional int64 producer_version = 7;
   // optional string producer_tag = 8;
   // optional string domain = 9;
+}
+
+// to specifiy a GUID, we can later formlize this
+message GUID {
+   optional bytes id = 1;
 }
 
 // A message defined to store a tensor in its serialized format.
@@ -361,6 +377,16 @@ message TensorProto {
   // When this field is present, the data_type field MUST be
   // UINT32 or UINT64
   repeated uint64 uint64_data = 11 [packed = true];
+
+  // tensor content can be stored outside this protobuf with this GUID as referance
+  optional GUID guid = 13;
+
+  // tensors shall also have arbirtrary attributes, this ability makes explicit sparsity
+  // redundant as they may be several ways to express sparsity
+  // we should also question ability to put in the same protobuf large tensors,
+  // always keep it separate
+  repeated AttributeProto attribute = 14;
+
 }
 
 // A sparse tensor must be stored as three dense tensors:
@@ -412,6 +438,7 @@ message TypeProto {
     TensorTypeProto tensor_type = 1;
 
     // The type of a sparse tensor.
+	// why do we need this? SparseTensorTypeProto == TensorTypeProto
     SparseTensorTypeProto sparse_tensor_type = 2;
 
   }
