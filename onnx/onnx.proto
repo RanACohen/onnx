@@ -253,6 +253,11 @@ message GraphProto {
   // optional string domain = 9;
 }
 
+// to specifiy a GUID, we can later formlize this
+message GUID {
+	optional bytes id = 1;
+}
+
 // A message defined to store a tensor in its serialized format.
 message TensorProto {
   enum DataType {
@@ -324,6 +329,9 @@ message TensorProto {
   // For int64.
   // When this field is present, the data_type field MUST be INT64
   repeated int64 int64_data = 7 [packed = true];
+
+  // tensor content can be stored outside this protobuf with this GUID as referance
+  optional GUID guid = 13;
 
   // Optionally, a name for the tensor.
   optional string name = 8; // namespace Value
